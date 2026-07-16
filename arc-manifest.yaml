@@ -1,39 +1,44 @@
 schema: arc/v1
-name: metafactory-skill
+name: package-builder
 version: 0.1.0
 type: skill
+tier: official
 description: >
-  Package building skill for the metafactory ecosystem. Encodes all conventions,
-  governance rules, and quality requirements for creating arc-installable packages.
-  Inspired by the HuggingFace transformers-to-mlx methodology: codify tacit knowledge
-  so agents and contributors can build conformant packages at scale.
+  Build conformant arc-installable packages for the metafactory ecosystem — the
+  canonical PackageBuilder skill: manifest conventions, blueprint tracking, compass
+  governance, content-filter safety, test-rig verification, trust metadata, and PR
+  quality standards.
 license: Apache-2.0
-namespace: the-metafactory
+namespace: "@metafactory"
 
 author:
-  name: Jens-Christian Fischer
-  github: jcfischer
+  name: Andreas Aastroem
+  github: mellanon
 
 provides:
   skill:
-    - trigger: build package
-    - trigger: create package
-    - trigger: package skill
-    - trigger: metafactory package
-    - trigger: author-builder
+    - name: PackageBuilder
+      path: skill/
+      trigger: build package
 
 depends_on:
   tools:
     - name: bun
-      version: ">=1.0.0"
 
 capabilities:
   filesystem:
-    read:
-      - "~/.claude/**"
-      - "~/.config/metafactory/**"
+    read: []
     write: []
   network: []
   bash:
     allowed: false
   secrets: []
+
+bundle:
+  exclude:
+    - vendor
+    - MEMORY
+    - node_modules
+    - .git
+    - Plans
+    - test
