@@ -197,7 +197,7 @@ instantiation:
 
 `guardrails.allowedSkills` MUST list every bundle declared in `blueprints[]` and nothing else. Mismatches between the two are a host-side denial waiting to happen.
 
-**Verify:** The manifest contains all nine required fields per `forge/design/agent-platform.md` (lines 159-171). `arc bundle --dry-run` (or whatever pre-publish validation arc grows under AP-102) does not error.
+**Verify:** The manifest contains all nine required fields per `forge/design/agent-platform.md` (lines 159-171). `arc pack --dry-run` (or whatever pre-publish validation arc grows under AP-102) does not error.
 
 **Anti-pattern:** Inventing manifest fields not in the schema. Hosts read only the fields they understand; extra fields are silently dropped, and the operator gets surprised behavior. If the schema needs extending, that is a `forge/design/agent-platform.md` change first, not an in-manifest extension.
 
