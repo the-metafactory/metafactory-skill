@@ -601,7 +601,7 @@ Your package is installed, upgraded, and audited by arc:
 - `arc install <name>` clones, validates manifest, creates symlinks
 - `arc upgrade <name>` pulls updates, checks capability changes
 - `arc audit` reviews installed packages' capability surfaces
-- `arc bundle` creates a distributable tarball
+- `arc pack` creates a distributable tarball
 - `arc publish` submits to the registry (requires sponsor for community tier)
 
 #### Compass (Governance)
@@ -912,7 +912,7 @@ arc install <name-or-url>
 arc list --json --type <type>
 arc info <name>
 arc audit
-arc bundle
+arc pack
 arc publish
 
 # Feature tracking

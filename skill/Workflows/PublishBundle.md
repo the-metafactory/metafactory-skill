@@ -1,6 +1,6 @@
 # PublishBundle Workflow
 
-> Publish a built arc bundle (skill, tool, agent, or other artifact type) to the metafactory registry through the `arc bundle -> arc publish --dry-run -> confirm -> arc publish -> registry sha256 round-trip` flow. Two-phase gate at the dry-run step; halt for explicit confirmation before mutating the registry. The post-publish round-trip is manual today (registry GET + sha256 compare); a first-class `arc verify <name>@<version>` is tracked under AP-102 -- see Step 6.
+> Publish a built package (skill, tool, agent, or other artifact type) to the metafactory registry through the `arc pack -> arc publish --dry-run -> confirm -> arc publish -> registry sha256 round-trip` flow. Two-phase gate at the dry-run step; halt for explicit confirmation before mutating the registry. The post-publish round-trip is manual today (registry GET + sha256 compare); a first-class `arc verify <name>@<version>` is tracked under AP-102 -- see Step 6.
 
 ## When to Use
 
@@ -52,10 +52,10 @@ The version in `arc-manifest.yaml` must match the version you intend to publish.
 
 ### 2. Build the Bundle
 
-**Action:** Run `arc bundle` to produce the tarball.
+**Action:** Run `arc pack` to produce the tarball.
 
 ```bash
-arc bundle
+arc pack
 ```
 
 Echo the resulting tarball path and size. Typical output:
@@ -66,7 +66,7 @@ Built ./dist/<name>-<version>.tgz (NN KB)
 
 **Verify:** The tarball exists at the printed path. Its filename matches `<name>-<version>.tgz` where `<name>` and `<version>` come from `arc-manifest.yaml`. The size is non-zero and within the expected order of magnitude (a typical skill bundle is 10-200 KB; a tool bundle with a vendored binary may be larger).
 
-**Anti-pattern:** Re-running `arc bundle` repeatedly without checking the output between runs. The bundle is content-addressed; if you change anything between Phase 1 and Phase 2, the sha256 will not match.
+**Anti-pattern:** Re-running `arc pack` repeatedly without checking the output between runs. The tarball is content-addressed; if you change anything between Phase 1 and Phase 2, the sha256 will not match.
 
 ### 3. Phase 1 -- `arc publish --dry-run` (HALT FOR CONFIRMATION)
 
@@ -194,7 +194,7 @@ If the package is a host-deployable component (Grove, Pulse, etc.), the announce
 After completing all steps:
 
 - [ ] Pre-flight: working tree clean, on default branch, manifest version matches intended release
-- [ ] `arc bundle` produced a tarball at the expected path
+- [ ] `arc pack` produced a tarball at the expected path
 - [ ] `arc publish --dry-run` ran successfully and the sha256 was recorded
 - [ ] Operator confirmation was explicit and in-band
 - [ ] `arc publish` returned success and the same sha256 as the dry-run

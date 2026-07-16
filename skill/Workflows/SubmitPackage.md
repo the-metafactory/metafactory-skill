@@ -71,7 +71,7 @@ For manual publication:
 - cosign must be installed (`cosign version`)
 - You must be able to sign the bundle
 
-**Verify:** `arc bundle` produces a tarball. The tarball's SHA-256 hash is stable across runs (reproducible build).
+**Verify:** `arc pack` produces a tarball. The tarball's SHA-256 hash is stable across runs (reproducible build).
 
 ### 4. Prepare the PR
 
@@ -210,7 +210,7 @@ blueprint lint
 
 For official packages published to the metafactory registry:
 ```bash
-arc bundle
+arc pack
 arc publish
 ```
 
