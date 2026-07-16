@@ -61,7 +61,7 @@ The skill installs to `~/.claude/skills/PackageBuilder/` and activates automatic
 
 ## Author
 
-Andreas — [@aastroem](https://github.com/aastroem)
+Andreas Aastroem — [@mellanon](https://github.com/mellanon)
 
 ## Inspiration
 

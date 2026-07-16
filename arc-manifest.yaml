@@ -12,8 +12,8 @@ license: Apache-2.0
 namespace: "@metafactory"
 
 author:
-  name: Andreas
-  github: aastroem
+  name: Andreas Aastroem
+  github: mellanon
 
 provides:
   skill:
