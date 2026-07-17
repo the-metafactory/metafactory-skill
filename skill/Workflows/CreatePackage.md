@@ -14,60 +14,56 @@ Before starting:
 
 ## Steps
 
-### 1. Determine Package Type and Name
+### 1. Determine the Repo Name and Artifact Class
 
-**Action:** Ask the user what kind of package they want to build and what it should be called.
+**Action:** Ask the user what the package does, then apply the **class-choice rule** (SKILL.md §0) to pick the repo name — decide by the lead artifact:
+- lead artifact is a `SKILL.md` → `metafactory-skill-<name>` (the default)
+- lead artifact is a CLI, or multiple unrelated skills → `metafactory-bundle-<name>`
+- inseparable from one app's runtime → `metafactory-<app>-skill-<name>`
 
 **Rules:**
-- Name must be lowercase, hyphenated (e.g., `my-cool-tool`, not `MyCoolTool`)
-- Name must not conflict with existing packages in the ecosystem
-- Type determines file structure and install location (see SKILL.md Section 1)
+- `<name>` is lowercase-hyphenated (e.g. `code-review`, not `CodeReview`).
+- The manifest `name:` is the repo name **minus its class prefix** (spec §4.2): repo `metafactory-skill-code-review` ⇒ `name: code-review`. The SKILL.md frontmatter `name:` is the PascalCase of that (`CodeReview`).
+- `bundle` is a repo-name class, never the manifest `type:`.
+- Register the new repo in `compass/ecosystem/repos.yaml` (with `visibility:`).
 
-**Verify:** Name is lowercase-hyphenated and not in `arc list` output.
+**Verify:** the repo name matches one grammar; `arc list` shows no name collision.
 
-**Anti-pattern:** Do not default to `skill` type. Ask explicitly. A package that provides a CLI tool should be type `tool`, not type `skill` with a CLI bolted on.
+**Anti-pattern:** Do not default the manifest `type` to `skill`. Set it from the lead artifact (a CLI-led repo is `type: tool`). And never a prefix-less repo name for a new repo.
 
-### 2. Scaffold Directory Structure
+### 2. Scaffold the Directory Structure (spec §4)
 
-**Action:** Create the directory structure matching the chosen type.
+**Action:** Create the bundle-style skill repo shape. Omit any directory you don't need — a procedure-only skill is just `arc-manifest.yaml` + `skill/`.
 
-For a **skill**:
 ```bash
-mkdir -p {name}/skill/Workflows
-mkdir -p {name}/src
-mkdir -p {name}/tests
-mkdir -p {name}/docs/agents-md
+mkdir -p metafactory-skill-{name}/skill/Workflows
+# add only what the package actually ships:
+mkdir -p metafactory-skill-{name}/src         # tools the skill uses (bun CLIs)
+mkdir -p metafactory-skill-{name}/commands     # slash-command .md files (provides.commands)
+mkdir -p metafactory-skill-{name}/agents       # agent rule files (provides.agents)
+mkdir -p metafactory-skill-{name}/hooks        # hook scripts (provides.hooks)
+mkdir -p metafactory-skill-{name}/test
 ```
 
-For a **tool**:
-```bash
-mkdir -p {name}/src/lib
-mkdir -p {name}/tests
-mkdir -p {name}/docs/agents-md
-```
-
-For an **agent**:
-```bash
-mkdir -p {name}
-```
-
-**Verify:** `ls -R {name}/` shows the expected structure.
+**Verify:** `ls -R metafactory-skill-{name}/` shows `arc-manifest.yaml` (next step) + `skill/SKILL.md` + `skill/Workflows/` at minimum.
 
 ### 3. Create arc-manifest.yaml
 
 **Action:** Write `arc-manifest.yaml` at the package root using the arc/v1 schema.
 
-Follow these rules exactly:
-- `schema: arc/v1` (required, no exceptions)
-- `version: 0.1.0` (always start here for new packages)
-- `license: Apache-2.0` (ecosystem default per DD-13, unless there's a specific reason for MIT)
-- `namespace`: `the-metafactory` for official packages, user's GitHub username for community
-- `capabilities`: Declare explicitly. Start with empty arrays and only add what's genuinely needed.
-- `bundle.exclude`: Always include `vendor`, `MEMORY`, `node_modules`, `.git`
+Follow the strict arc/v1 contract (spec §4.1) exactly:
+- `schema: arc/v1` (required literal; any legacy or absent schema is rejected by the validator).
+- `name:` derives from the repo name minus its prefix (§4.2); `version: 0.1.0`.
+- `type:` is the lead artifact's class (never `bundle`); `tier:` and a one-line `description:`.
+- `license: Apache-2.0` (ecosystem default per DD-13, unless there's a specific reason for MIT).
+- `author:` is a **singular map** `{ name, github }` — an `authors:` list is rejected.
+- `namespace:` is OPTIONAL and **not identity** — if present it must be a DD-15 `@scope` (e.g. `@metafactory`), never a bare `the-metafactory`/username. Omit it unless you mean to declare a publish scope.
+- `capabilities:` is a REQUIRED block with all four sub-blocks as **explicit empties** — `filesystem: { read: [], write: [] }`, `network: []`, `bash: { allowed: false }`, `secrets: []`. Network entries use the `{ host: <bare-host>, reason: <why> }` shape (never `{ domain, ... }` or a URL string).
+- `bundle.exclude:` baseline `[vendor, MEMORY, node_modules, .git, Plans, test]`.
 
-**Verify:** Read back the file and confirm all required fields are present. Compare against the schema in SKILL.md Section 1.
+**Verify:** run `arc validate` in the repo root — it must exit 0 (see step 11). Reading the file back is not enough; the strict validator is the gate.
 
-**Anti-pattern:** Do not copy capabilities from another package without checking if they apply. Each package's capabilities must reflect its actual needs.
+**Anti-pattern:** Do not copy capabilities from another package without checking if they apply — each package declares its *actual* surface (capability honesty). Do not omit any capabilities sub-block.
 
 ### 4. Create package.json
 
@@ -202,13 +198,28 @@ git commit -m "chore: scaffold {name} package"
 
 **Verify:** `git log` shows the initial commit. `git status` is clean.
 
+### 11. Validate the manifest against the strict contract (the gate)
+
+**Action:** Run arc's strict validator over the scaffolded repo — this is the acceptance gate; a scaffold that does not pass is not done.
+
+```bash
+arc validate            # in the repo root; exit 0 required
+echo "exit=$?"
+```
+
+`arc validate` enforces spec §4.1/§4.2: `schema: arc/v1`, name-derivation, singular `author`, the full `capabilities` block with explicit empties, `{ host, reason }` network entries, `@scope` namespace grammar, and the SKILL.md frontmatter PascalCase-name rule. It rejects every legacy affordance (`pai/v1`, `authors:` lists, `{ domain, reason }`, missing capabilities). Wire the `metafactory-actions` `validate-manifest` reusable workflow as CI so the same gate runs on every PR.
+
+**Verify:** `arc validate` prints `OK: …/arc-manifest.yaml is a valid arc/v1 manifest` and exits 0.
+
 ---
 
 ## Verification Checklist
 
 After completing all steps:
 
-- [ ] Directory structure matches the package type
+- [ ] Repo named under the §3 grammar (`metafactory-skill-<name>` etc.); manifest `name` = repo name minus prefix
+- [ ] `arc validate` exits 0 (the strict §4.1/§4.2 gate)
+- [ ] Directory structure matches the spec §4 shape
 - [ ] `arc-manifest.yaml` exists with all required fields
 - [ ] `package.json` exists with correct name and test script
 - [ ] `bun install` succeeds

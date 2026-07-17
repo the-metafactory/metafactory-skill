@@ -131,13 +131,13 @@ The persona file MUST NOT:
 Skeleton (replace placeholders; full schema in the design doc):
 
 ```yaml
-schema: pai/v1
+schema: arc/v1                          # required literal (no legacy schema alias)
 type: agent
-namespace: metafactory                  # or your GitHub username for community tier
+namespace: "@metafactory"               # OPTIONAL @scope publish hint — NOT identity/trust
 name: <agent-name>
 version: 0.1.0
-tier: custom                            # custom | community | verified | official
-author:
+tier: custom                            # custom | community | official | core
+author:                                 # singular map (an authors: list is rejected)
   name: <full-name>
   github: <github-username>
 

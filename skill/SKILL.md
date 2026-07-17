@@ -58,6 +58,27 @@ Everything below is derived from the actual metafactory source code, design deci
 
 ---
 
+### 0. Repository Naming and Artifact Class (spec §3)
+
+Every new package is its own repo in the `the-metafactory` org, named under one grammar (extends compass `component-repo-naming.md`):
+
+```
+metafactory-skill-<name>          # cross-app skill-led repo — the DEFAULT
+metafactory-<app>-skill-<name>    # skill inseparable from one app's runtime (e.g. metafactory-soma-skill-handoff)
+metafactory-bundle-<name>         # CLI-led or multi-skill cross-app collection (e.g. metafactory-bundle-discord)
+```
+
+Rules: lowercase, hyphen-separated; `metafactory` is always one word; register every new repo in `compass/ecosystem/repos.yaml` with `visibility:` set. **The name is load-bearing** — install dirs and registry entries derive from it, and the manifest `name:` is the repo name minus its class prefix (see the manifest `name` rule).
+
+**Class-choice rule (mechanical — decide by the lead artifact):**
+- Lead artifact is a `SKILL.md` (even when it ships tools/commands/rules that serve the skill) → `metafactory-skill-<name>`.
+- Lead artifact is a CLI, or the repo carries multiple unrelated skills → `metafactory-bundle-<name>`.
+- The skill is inseparable from one app's runtime/CLI → `metafactory-<app>-skill-<name>`.
+
+"bundle" means **exactly one thing — a multi-artifact repo** (never a manifest `type:`, never the packaging verb, which is `arc pack`). The pathfinder [`metafactory-soma-skill-handoff`](https://github.com/the-metafactory/metafactory-soma-skill-handoff) is the living example of a conformant repo.
+
+---
+
 ### 1. Arc Manifest (arc-manifest.yaml)
 
 Every package MUST have an `arc-manifest.yaml` at its root. This is the contract between your package and the arc package manager. Arc reads this file to determine what your package provides, what it needs, and what capabilities it requests.
@@ -65,15 +86,16 @@ Every package MUST have an `arc-manifest.yaml` at its root. This is the contract
 #### Schema
 
 ```yaml
-schema: arc/v1
-name: <package-name>
+schema: arc/v1                      # REQUIRED literal. `pai/v1` and absent are migration failures.
+name: <package-name>                # lowercase-hyphenated; MUST derive from the repo name (see Naming)
+namespace: "@metafactory"           # OPTIONAL @scope publish hint — NOT identity/trust (see below)
 version: <semver>
-type: <artifact-type>
+type: <artifact-type>               # one of the valid types below — `bundle` is NOT a type
 tier: <trust-tier>
 description: <string>
 license: <license-id>
 
-author:
+author:                             # SINGULAR map. An `authors:` list is rejected (arc#278).
   name: <full-name>
   github: <github-username>
 
@@ -100,7 +122,8 @@ capabilities:
     read: ["<glob-pattern>"]
     write: ["<glob-pattern>"]
   network:
-    - "https://example.com/**"
+    - host: example.com
+      reason: <why this bare host is contacted>
   bash:
     allowed: true|false
   secrets:
@@ -121,11 +144,11 @@ bundle:
 
 #### Field Rules
 
-**name**: Lowercase, hyphenated. Must be unique within the namespace. Examples: `demo-skill`, `arc-skill-code-review`, `grove`.
+**name**: Lowercase, hyphenated. **MUST derive from the repo name** by stripping the class prefix (spec §4.2): repo `metafactory-skill-<name>` ⇒ manifest `name: <name>`; the SKILL.md frontmatter `name:` is the PascalCase of that (`code-review` ⇒ `CodeReview`). The validator enforces the mapping — no more `release-manager` repo / `ReleaseManager` manifest divergence. Examples: repo `metafactory-skill-code-review` ⇒ `name: code-review`; repo `metafactory-skill-package-builder` ⇒ `name: package-builder`. Grandfathered bare-name repos (e.g. `agent-state`) keep their name and are derivation-exempt.
 
 **version**: Semantic versioning (MAJOR.MINOR.PATCH). Start at `0.1.0` for new packages. See the versioning SOP for bump rules.
 
-**type**: Determines where arc installs the package. Only these values are valid:
+**type**: The artifact class — determines where arc installs the package. Only these values are valid (arc#338 corrected the enum). **`bundle` is NOT a manifest type** — a "bundle" is a *repo-name class* (a multi-artifact repo, `metafactory-bundle-<name>`); its manifest still declares the type of its lead artifact (usually `skill`) and expresses its multi-artifact nature through `provides:`, not `type:`.
 
 | Type | Install Location | Purpose |
 |------|-----------------|---------|
@@ -148,7 +171,7 @@ bundle:
 
 **license**: Must be a valid SPDX identifier. The ecosystem default is `Apache-2.0` (DD-13). MIT is acceptable for simple utilities. FSL-1.1-Apache-2.0 is reserved for future cloud components.
 
-**namespace**: For `official` and `core` packages: `the-metafactory`. For community packages: the author's GitHub username.
+**namespace**: OPTIONAL, and **namespace is not identity** (spec §4.1). It is only a publish-time `@scope` hint following the DD-15 grammar (`^@[a-z0-9-]+$`, e.g. `@metafactory`) — a bare value like `metafactory` or `the-metafactory` is a validation failure. A manifest cannot self-assert trust or ownership through it: trust and install identity derive from the **source URL** + arc's recorded install (the ADR-0024 lesson — never key trust on an author-controlled field), and the artifact *class* is the `type:` field, never the namespace. Two axes stay separate — provenance (who publishes, the `@scope`) and class (what it is, `type:`); see also the registry's own `trust:` vs manifest `tier` split in [`arc docs/registry-schema.md`](https://github.com/the-metafactory/arc/blob/main/docs/registry-schema.md). Omit it unless you have a reason to declare the publish scope.
 
 **capabilities**: This is a security declaration. Arc displays these to the user before installation and requires explicit confirmation. Follow the principle of least privilege:
 - Only request `filesystem.read` for paths your package actually reads
@@ -173,26 +196,26 @@ bundle:
 
 The file layout depends on the package type, but all packages share a common pattern.
 
-#### Skill Package (type: skill)
+#### Skill Package — the bundle-style repo shape (spec §4)
+
+One repo ships the skill *plus* the tools, slash commands, agent rule files, and hooks that serve it, all described by one `arc-manifest.yaml` via `provides:`. Empty directories are simply omitted — a procedure-only skill is just `arc-manifest.yaml` + `skill/`.
 
 ```
-my-skill/
-  arc-manifest.yaml           # package contract
-  package.json                # bun dependencies (if any)
+metafactory-skill-<name>/
+  arc-manifest.yaml           # REQUIRED — the single manifest (schema: arc/v1)
+  README.md                   # what it is, install one-liner, artifact inventory
+  LICENSE                     # Apache-2.0 default (DD-13); AGPL only where already chosen
   skill/
-    SKILL.md                  # skill entry point (YAML frontmatter + markdown)
-    Workflows/                # sub-workflow files (one per workflow)
-      CreateThing.md
-      UpdateThing.md
-    References/               # domain-specific reference docs (optional)
-    Templates/                # template files (optional)
-  src/                        # source code (if skill has CLI or logic)
-    cli.ts
-    lib/
-  tests/                      # test files
-    cli.test.ts
-  blueprint.yaml              # feature tracking (if managed as ecosystem project)
-  CLAUDE.md                   # agent rules for this repo
+    SKILL.md                  # entrypoint: YAML frontmatter (PascalCase name) + routing table
+    Workflows/                # one .md per discrete operation
+    references/               # optional (lowercase)
+  src/                        # tools the skill uses: bun-first TypeScript CLIs (src/cli.ts)
+  commands/                   # slash-command .md prompt files → provides.commands
+  agents/                     # agent rule files / subagent personas → provides.agents
+  hooks/                      # hook scripts referenced by provides.hooks
+  test/
+  agents-md.yaml + CLAUDE.md  # generated via the compass template
+  blueprint.yaml              # if registered in compass/ecosystem/repos.yaml
 ```
 
 #### Tool Package (type: tool)
